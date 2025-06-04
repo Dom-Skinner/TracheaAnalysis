@@ -22,7 +22,7 @@ end
 
 df = DataFrame("exp_id" => String[], "unique_id"=> String[], "t" => Float64[], 
     "elongation" => Float64[],  "branch" => String[], "sphericity" => Float64[],
-     "chords_mean" => Float64[],"chords_nonzero" => Float64[])
+     "volumeRatio" => Float64[],"chords_nonzero" => Float64[])
 
 dirs = filter(x->isdir("data/vtk/"*x),readdir("data/vtk/"))
 
@@ -53,6 +53,7 @@ for dir in dirs
 
     t = 1:length(vtk_files)
     sph = h5read("data/processed/sphericity/"*dir*".h5", "/sphericity")
+    volumeRatio = h5read("data/processed/sphericity/"*dir*".h5", "/volumeRatio")
 
     chords_mean = h5read("data/processed/chords/"*dir*".h5", "/total_mean")
     chords_nonzero = h5read("data/processed/chords/"*dir*".h5", "/nonzero_fraction")
@@ -63,8 +64,8 @@ for dir in dirs
                         "branch" => vcat(repeat(["Tr7"],length(t)),repeat( ["Tr8"], length(t))),
                      "t" => repeat(t,2), 
                      "elongation" => vcat(ext_arr[:,1], ext_arr[:,2]), 
+                     "volumeRatio" => vcat(volumeRatio[:,1], volumeRatio[:,2]),
                      "sphericity" => vcat(sph[:,1], sph[:,2]),
-                     "chords_mean" => vcat(chords_mean[:,1], chords_mean[:,2]),
                     "chords_nonzero" => vcat(chords_nonzero[:,1], chords_nonzero[:,2]))
 
     # Append new rows to the existing DataFrame
@@ -75,7 +76,7 @@ end
 #= 
 # can test some plots to inspect features
 using Plots
-plot(df.t, df.elongation, group=df.unique_id)
+plot(df.t, df.volumeRatio, group=df.unique_id)
 =#
 
 CSV.write("data/processed/morphology.csv",df)

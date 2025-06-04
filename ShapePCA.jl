@@ -10,7 +10,7 @@ df = CSV.read("data/processed/data_with_morphology.csv",DataFrame)
 df_Terminal = filter(row -> occursin("TerminalCell", row.Cell_Type), df)
 df_Fusion = filter(row -> occursin("FusionCell", row.Cell_Type), df)
 
-columns_to_keep = [:elongation, :sphericity,:chords_nonzero]
+columns_to_keep = [:elongation, :sphericity,:chords_nonzero,:volumeRatio]
 df_selected = select(df_Terminal, columns_to_keep)
 
 # apply PCA 
