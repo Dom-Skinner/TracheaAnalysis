@@ -22,7 +22,7 @@ end
 
 df = DataFrame("exp_id" => String[], "unique_id"=> String[], "t" => Float64[], 
     "elongation" => Float64[],  "branch" => String[], "sphericity" => Float64[],
-    "sphericity_directed" => Float64[], "chords_mean" => Float64[],"chords_nonzero" => Float64[])
+     "chords_mean" => Float64[],"chords_nonzero" => Float64[])
 
 dirs = filter(x->isdir("data/vtk/"*x),readdir("data/vtk/"))
 
@@ -53,7 +53,6 @@ for dir in dirs
 
     t = 1:length(vtk_files)
     sph = h5read("data/processed/sphericity/"*dir*".h5", "/sphericity")
-    sph_dir = h5read("data/processed/sphericity/"*dir*".h5", "/sphericity_directed")
 
     chords_mean = h5read("data/processed/chords/"*dir*".h5", "/total_mean")
     chords_nonzero = h5read("data/processed/chords/"*dir*".h5", "/nonzero_fraction")
@@ -65,7 +64,6 @@ for dir in dirs
                      "t" => repeat(t,2), 
                      "elongation" => vcat(ext_arr[:,1], ext_arr[:,2]), 
                      "sphericity" => vcat(sph[:,1], sph[:,2]),
-                     "sphericity_directed" => vcat(sph_dir[:,1], sph_dir[:,2]),
                      "chords_mean" => vcat(chords_mean[:,1], chords_mean[:,2]),
                     "chords_nonzero" => vcat(chords_nonzero[:,1], chords_nonzero[:,2]))
 
