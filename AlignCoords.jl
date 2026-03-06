@@ -80,7 +80,7 @@ end
 
 df = CSV.read("data/processed/data_with_PC.csv",DataFrame)
 
-df_Terminal = filter(row -> occursin("TerminalCell", row.Cell_Type), df)
+df_Terminal = filter(row -> .!occursin("FusionCell", row.Cell_Type), df)
 df_Fusion = filter(row -> occursin("FusionCell", row.Cell_Type), df)
 unique_pair = [findfirst(unique(df_Terminal.unique_pair) .== i) for i in df_Terminal.unique_pair] # unique pair scaled to 1:n
 
@@ -89,20 +89,28 @@ tlims = (-50,290)
 # First show the data unaligned - as is.
 # ==================================================================================================
 
-
 p1 = plot(df_Terminal.t,df_Terminal.elongation,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="elongation")
 p2 = plot(df_Terminal.t,df_Terminal.sphericity,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="sphericity")
 p3 = plot(df_Terminal.t,df_Terminal.volumeRatio,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="volume ratio")
 p4 = plot(df_Terminal.t,df_Terminal.chords_nonzero,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="chords_nonzero")
-p5 = plot(df_Terminal.t,df_Terminal.PC1,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="PC1")
-p6 = plot(df_Terminal.t,df_Terminal.Normalized_DSRF_Intensity,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="DSRF Intensity")
-plot(p1,p2,p3,p4,p5,p6,layout=(2,3),size=(800,600))
+p5 = plot(df_Terminal.t,df_Terminal.area,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="area")
+p6 = plot(df_Terminal.t,df_Terminal.eccentricity,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="eccentricity")
+p7 = plot(df_Terminal.t,df_Terminal.perimeter,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="perimeter")
+p8 = plot(df_Terminal.t,df_Terminal.circularity,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="circularity")
+p9 = plot(df_Terminal.t,df_Terminal.relative_volume,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="relative_volume")
+p10 = plot(df_Terminal.t,df_Terminal.nuclei_distance,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="nuclei_distance")
+
+p11 = plot(df_Terminal.t,df_Terminal.PC1,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="PC1")
+p12 = plot(df_Terminal.t,df_Terminal.Normalized_DSRF_Intensity_scaled,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="DSRF Intensity")
+
+plot(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,layout=(3,4),size=(1200,900))
 savefig("plots/Unaligned_data.pdf")
 
 # ==================================================================================================
 # First, let us align to the PC1 coord
 # ==================================================================================================
-shift_PC,p = joint_tanh_shift_fit(df_Terminal.t,unique_pair,df_Terminal.PC1)
+early_time = df_Terminal.t .< 175
+shift_PC,p = joint_tanh_shift_fit(df_Terminal.t[early_time],unique_pair[early_time],df_Terminal.PC1[early_time])
 t_shifted_PC = df_Terminal.t .- shift_PC[unique_pair]
 
 f = (x-> p[1]*tanh.(p[2]*(x-p[3]))-p[4])
@@ -114,11 +122,90 @@ p1 = plot(t_shifted_PC,df_Terminal.elongation,group=df_Terminal.unique_id,legend
 p2 = plot(t_shifted_PC,df_Terminal.sphericity,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="sphericity")
 p3 = plot(t_shifted_PC,df_Terminal.volumeRatio,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="volume ratio")
 p4 = plot(t_shifted_PC,df_Terminal.chords_nonzero,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="chords_nonzero")
-p5 = plot(t_shifted_PC,df_Terminal.PC1,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="PC1")
-p6 = plot(t_shifted_PC,df_Terminal.Normalized_DSRF_Intensity,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="DSRF Intensity")
-plot(p1,p2,p3,p4,p5,p6,layout=(2,3),size=(800,600))
+p5 = plot(t_shifted_PC,df_Terminal.area,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="area")
+p6 = plot(t_shifted_PC,df_Terminal.eccentricity,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="eccentricity")
+p7 = plot(t_shifted_PC,df_Terminal.perimeter,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="perimeter")
+p8 = plot(t_shifted_PC,df_Terminal.circularity,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="circularity")
+p9 = plot(t_shifted_PC,df_Terminal.relative_volume,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="relative_volume")
+p10 = plot(t_shifted_PC,df_Terminal.nuclei_distance,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="nuclei_distance")
+p11 = plot(t_shifted_PC,df_Terminal.PC1,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="PC1")
+p12 = plot(t_shifted_PC,log.(df_Terminal.Normalized_DSRF_Intensity_scaled),group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="DSRF Intensity")
+plot(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,layout=(3,4),size=(1200,900))
 savefig("plots/Aligned_to_PC_data.pdf")
 
+
+
+mutant_filter = .!occursin.("_bnl_",df_Terminal.exp_id)
+failure_filter = [id ∈["251001_DSRFsfGFP_bnl_Data_Tr8","251005_DSRFsfGFP_bnl_Data_Tr7","251006_DSRFsfGFP_bnl_Data_Tr8","251008_DSRFsfGFP_bnl_Data_Tr7","251008_DSRFsfGFP_bnl_Data_Tr8"] for id in df_Terminal.unique_id]
+remainder_filter = .!mutant_filter .& .!failure_filter
+catagory_arr = mutant_filter .* 1 .+ failure_filter .* 2 .+ remainder_filter .* 3    
+p1 =  plot(t_shifted_PC,df_Terminal.elongation,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="elongation",c=catagory_arr,msw=0.1,ms=5)
+p2 = plot(t_shifted_PC,df_Terminal.sphericity,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="sphericity",c=catagory_arr,msw=0.1,ms=5)
+p3 = plot(t_shifted_PC,df_Terminal.volumeRatio,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="volume ratio",c=catagory_arr,msw=0.1,ms=5)
+p4 = plot(t_shifted_PC,df_Terminal.chords_nonzero,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="chords_nonzero",c=catagory_arr,msw=0.1,ms=5)
+p5 = plot(t_shifted_PC,df_Terminal.area,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="area",c=catagory_arr,msw=0.1,ms=5)
+p6 = plot(t_shifted_PC,df_Terminal.eccentricity,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="eccentricity",c=catagory_arr,msw=0.1,ms=5)
+p7 = plot(t_shifted_PC,df_Terminal.perimeter,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="perimeter",c=catagory_arr,msw=0.1,ms=5)
+p8 = plot(t_shifted_PC,df_Terminal.circularity,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="circularity",c=catagory_arr,msw=0.1,ms=5)
+p9 = plot(t_shifted_PC,df_Terminal.relative_volume,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="relative_volume",c=catagory_arr,msw=0.1,ms=5)
+p10 = plot(t_shifted_PC,df_Terminal.nuclei_distance,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="nuclei_distance",c=catagory_arr,msw=0.1,ms=5)
+p11 = plot(t_shifted_PC,df_Terminal.PC1,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="PC1",c=catagory_arr,msw=0.1,ms=5)
+p12 = plot(t_shifted_PC,df_Terminal.Normalized_DSRF_Intensity_scaled,yaxis=:log10,group=df_Terminal.unique_id,legend=false,xlabel="Time",ylabel="DSRF Intensity",c=catagory_arr,msw=0.1,ms=5)
+plot(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,layout=(3,4),size=(1200,900))
+savefig("plots/Aligned_to_PC_data.pdf")
+
+
+
+
+
+clim_vals = extrema(t_shifted_PC)   # (min, max)
+scatter(df_Terminal.PC1[mutant_filter], df_Terminal.PC2[mutant_filter], 
+        xlabel="PC1", ylabel="PC2", 
+        aspect_ratio=:equal, 
+        size=(800,800),clims=clim_vals,
+        ms=5, c =:Greys, msc=:black,
+        label=false,msw=0.5,zcolor=t_shifted_PC[mutant_filter])
+scatter!(df_Terminal.PC1[failure_filter], df_Terminal.PC2[failure_filter],
+        ms=5,msc=:black,clims=clim_vals,
+        label=false,msw=0.5,zcolor=t_shifted_PC[failure_filter],c=:Reds)
+scatter!(df_Terminal.PC1[remainder_filter], df_Terminal.PC2[remainder_filter],
+    zcolor=t_shifted_PC[remainder_filter],
+    ms=5,msc=:black,clims=clim_vals,
+        label=false,msw=0.5,c=:Blues,grid=false)
+savefig("plots/PC_full_tmp2.pdf")
+
+
+
+p1 = plot(df_Terminal.t,df_Terminal.Normalized_DSRF_Intensity_scaled,yaxis=:log10,group=df_Terminal.unique_id,legend=false,
+    xlabel="Unscaled time",ylabel="DSRF Intensity (30%)",c=catagory_arr,msw=0.1,ms=5)
+p2 = plot(t_shifted_PC,df_Terminal.Normalized_DSRF_Intensity_scaled,yaxis=:log10,group=df_Terminal.unique_id,legend=false,
+    xlabel="Scaled time",ylabel="DSRF Intensity (30%)",c=catagory_arr,msw=0.1,ms=5)
+p3 = plot(df_Terminal.t,df_Terminal.Normalized_DSRF_Intensity,yaxis=:log10,group=df_Terminal.unique_id,legend=false,
+xlabel="Unscaled time",ylabel="DSRF Intensity (max)",c=catagory_arr,msw=0.1,ms=5)
+p4 = plot(t_shifted_PC,df_Terminal.Normalized_DSRF_Intensity,yaxis=:log10,group=df_Terminal.unique_id,legend=false,
+xlabel="Scaled time",ylabel="DSRF Intensity (max)",c=catagory_arr,msw=0.1,ms=5)
+plot(p1,p2,p3,p4,layout=(2,2),size=(800,600))
+savefig("plots/DSRF_Intensity_in_time.pdf")
+
+p1 = plot(t_shifted_PC,df_Terminal.Normalized_DSRF_Intensity_scaled,yaxis=:log10,group=df_Terminal.unique_id,legend=false,
+    xlabel="Scaled time",ylabel="DSRF::sfGFP Intensity",c=catagory_arr,msw=0.1,ms=5,grid=false)
+p2 = plot(t_shifted_PC,df_Terminal.Normalized_DSRF_Intensity_scaled,group=df_Terminal.unique_id,legend=false,
+    xlabel="Scaled time",ylabel="DSRF::sfGFP Intensity",c=catagory_arr,msw=0.1,ms=5,grid=false)
+plot(p1,p2,size=(800,400),layout=(1,2))
+savefig("plots/DSRF_Scaled_Intensity_in_time.pdf")
+
+
+
+p1 = plot(df_Terminal.t,df_Terminal.Normalized_DSRF_Intensity_scaled,yaxis=:log10,group=df_Terminal.unique_id,legend=false,
+    xlabel="Unscaled Time (min)",ylabel="DSRF::sfGFP Intensity",c=catagory_arr,msw=0.1,ms=5,grid=false)
+p2 = plot(t_shifted_PC,df_Terminal.Normalized_DSRF_Intensity_scaled,yaxis=:log10,group=df_Terminal.unique_id,legend=false,
+    xlabel="Scaled Time (min)",ylabel="DSRF::sfGFP Intensity",c=catagory_arr,msw=0.1,ms=5,grid=false)
+p3 = plot(df_Terminal.t,df_Terminal.PC1,group=df_Terminal.unique_id,legend=false,xlabel="Unscaled Time (min)",
+    ylabel="Morphology PC1",c=catagory_arr,msw=0.1,ms=5,grid=false)
+p4 = plot(t_shifted_PC,df_Terminal.PC1,group=df_Terminal.unique_id,legend=false,xlabel="Scaled Time (min)",
+    ylabel="Morphology PC1",c=catagory_arr,msw=0.1,ms=5,grid=false)
+plot(p1,p2,p3,p4,layout=(2,2),size=(800,600))
+savefig("plots/DSRF_versus_Morphology.pdf")
 
 # ==================================================================================================
 # Now align to DSRF with no scaling

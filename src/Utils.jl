@@ -63,7 +63,7 @@ end
 
 
 function add_info!(df,Y,str)
-    ids = findall(occursin.("TerminalCell", df.Cell_Type))
+    ids = findall(occursin.("FusionCell", df.Cell_Type))
     pair_dict = create_pair_dict(df)
     df[!,str] = zeros(size(df,1))
     df[ids,str] = Y

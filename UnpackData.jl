@@ -1,4 +1,4 @@
-using DataFrames, CSV, MultivariateStats, LinearAlgebra
+using DataFrames, CSV, MultivariateStats, LinearAlgebra, StatsBase
 
 function prepare_df(file_name)
     df = CSV.read(file_name, DataFrame)
@@ -25,37 +25,47 @@ function create_adjusted_xy!(df)
     df[!,:x_adj] = copy(df.x)
     df[!,:y_adj] = copy(df.y)
 
-    for exp in unique(df.exp_id)
+    for exp_id in unique(df.exp_id)
+
+        
+        vecs_arr = []
+        mean_arr = []
+
         for s  in ["7", "8"]
-
-            cond_fusion = (df.Cell_Type .== "Tr"*s*"_FusionCell") .& 
-                (df.exp_id .== exp) .& (.!isnan.(df.x)) .& (.!isnan.(df.y))    
-            cond_terminal = (df.Cell_Type .== "Tr"*s*"_TerminalCell") .& 
-                (df.exp_id .== exp) .& (.!isnan.(df.x)) .& (.!isnan.(df.y))
-
-            cond = cond_fusion .| cond_terminal
+            cond = occursin.(s,df.Cell_Type) .& (df.exp_id .== exp_id) .& (.!isnan.(df.x)) .& (.!isnan.(df.y))    
 
             X = hcat(df.x[cond],df.y[cond])
             t_local = df.t[cond]
-            fusion_local = findall(df.Cell_Type[cond] .== "Tr"*s*"_FusionCell")
-            terminal_local = findall(df.Cell_Type[cond] .== "Tr"*s*"_TerminalCell")
 
             pca_fit = MultivariateStats.fit(PCA, X'; maxoutdim=2, pratio=1.0)
             
             Y = MultivariateStats.transform(pca_fit, X')
-            if det(pca_fit.proj) < 0 # ensure PC is rotation 
+            vecs = copy(pca_fit.proj)
+            if det(vecs) < 0 # ensure PC is rotation 
                 Y[1,:] .*= -1
+                vecs[1,:] .*= -1
             end
 
             sign_correct = (cor(Y[1,:],t_local) > 0) ? 1 : -1 
             Y[:,] .*= sign_correct
-
-            Δ = (Y[2,fusion_local][argmax(t_local[fusion_local])] - Y[2,terminal_local][argmax(t_local[terminal_local])])
-            y_sign_correct = (Δ > 0) ? 1 : -1 
-            Y[2,:] .*= y_sign_correct
+            vecs[:,] .*= sign_correct
 
             df.x_adj[cond] = Y[1,:]
             df.y_adj[cond] = Y[2,:]
+
+            push!(vecs_arr,vecs)
+            push!(mean_arr,pca_fit.mean)
+        end
+
+
+        y_sign_correct = 1
+        if vecs_arr[1][2,:]' *(mean_arr[1] .- mean_arr[2]) > 0
+            y_sign_correct = -1
+        end
+        
+        for s  in ["7", "8"]
+            cond =  occursin.(s,df.Cell_Type) .& (df.exp_id .== exp_id) .& (.!isnan.(df.x)) .& (.!isnan.(df.y))    
+            df.y_adj[cond] .*= y_sign_correct
         end
     end
 end
@@ -113,6 +123,19 @@ function add_flip_state!(df)
 end
 
 
+function add_dist_state!(df)
+    Δ_total = zeros(Float64,size(df,1))
+
+    for p = 1:length(Δ_total)
+        pts = findall((df.unique_pair.==df.unique_pair[p]) .& (df.t.==df.t[p]))
+        @assert length(pts) == 2
+        Δ_total[p] = sqrt((df.x_adj[pts[1]] .- df.x_adj[pts[2]]).^2 .+ (df.y_adj[pts[1]] .- df.y_adj[pts[2]]).^2)
+    end
+    
+    df.nuclei_distance = Δ_total
+end
+
+
 function add_velocity!(df)
     # Compute average cell velocity
     df[!,:avg_vel] = 0*copy(df.x)
@@ -140,12 +163,35 @@ function temporary_remove!(df)
     df.t[df.exp_id .== "250404_DSRFsfGFP_Data"] .-= 16
 end 
 
+function remove_some_stalk!(df)
+    # Delete stalk if terminal exists
+    for exp_id in unique(df.exp_id)
+        for s  in ["7", "8"]
+            if any(occursin.(s*"_Terminal",df.Cell_Type) .& (df.exp_id .== exp_id))
+                cond = occursin.(s*"_StalkCell",df.Cell_Type) .& (df.exp_id .== exp_id) 
+                deleteat!(df,findall(cond)) 
+            end
+        end
+    end    
+
+end
+
+function rescale_intensity!(df)
+    exp_strs = unique(df.exp_id)
+    df.Normalized_DSRF_Intensity_scaled = copy(df.Normalized_DSRF_Intensity)
+    for e in exp_strs
+        cond = occursin.(e,df.exp_id)
+        q_scale = quantile(df.Normalized_DSRF_Intensity[cond],0.3)
+        df.Normalized_DSRF_Intensity_scaled[cond] ./= q_scale
+    end
+end
+
 function load_data()
     files=filter(x -> occursin(".csv",x),readdir("data/raw"))
     all_files = vcat(["data/raw/"*f for f in files]...)
 
     df = vcat([prepare_df(f) for f in all_files]...)
-    deleteat!(df,findall(occursin.("Stalk",df.Cell_Type))) # don't care about stalk cells for now
+    remove_some_stalk!(df) 
     temporary_remove!(df) # a few frames are missing in the segmentation?
     create_adjusted_xy!(df)
     add_unique_cell!(df)
@@ -153,6 +199,8 @@ function load_data()
     add_Δ!(df)
     add_flip_state!(df)
     add_velocity!(df)
+    add_dist_state!(df)
+    rescale_intensity!(df)
     return df
 end
 
@@ -161,3 +209,24 @@ df = load_data()
 mkpath("data/processed")
 CSV.write("data/processed/combined_data.csv",df)
 
+
+using Plots
+exp_strs = unique(df.exp_id)
+plt_scale = plot(xlabel="Intensity (scaled to 30th percentile)", ylabel="Cumulative Fraction")
+plt_uscale = plot(xlabel="Intensity (scaled to max value)", ylabel="Cumulative Fraction")
+for e in exp_strs
+    df_one_exp =df[occursin.(e,df.exp_id),:]
+    N = length(df_one_exp.Normalized_DSRF_Intensity)
+    q_scale = quantile(df_one_exp.Normalized_DSRF_Intensity,0.3)
+    plot!(plt_scale,sort(df_one_exp.Normalized_DSRF_Intensity)/q_scale,(1:N)/N, label=e)
+    plot!(plt_uscale,sort(df_one_exp.Normalized_DSRF_Intensity),(1:N)/N, label=e)
+    #histogram!(plt,df_one_exp.Normalized_DSRF_Intensity,bins=20,lt=:stephist,label=e)
+end
+
+plt_scale_zoom = deepcopy(plt_scale)
+plt_uscale_zoom = deepcopy(plt_uscale)
+
+plot!(plt_scale_zoom, xlims=(0,5), ylims=(0,1),legend=false)
+plot!(plt_uscale_zoom, xlims=(0,0.15), ylims=(0,1),legend=false)
+plot(plt_scale,plt_uscale, plt_scale_zoom, plt_uscale_zoom, layout=(2,2),size=(800,800))
+savefig("plots/intensity_normalizing.pdf")
