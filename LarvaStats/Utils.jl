@@ -253,3 +253,20 @@ function reliability_curve(p::AbstractVector{<:Real},
 
     return xs, ys, ws
 end
+
+"""
+3-category ordinal probit probabilities with cutpoints (c1, c2).
+
+Interpretation:
+  y=0: (-Inf, c1]
+  y=1: (c1, c2]
+  y=2: (c2, Inf)
+"""
+@inline function ordinal3_probs(μ, σ; cutpoints=(0.0, 1.0))
+    c1, c2 = cutpoints
+    d = Normal(μ, σ)
+    p0 = cdf(d, c1)
+    p1 = cdf(d, c2) - p0
+    p2 = 1 - cdf(d, c2)
+    return (p0, p1, p2)   # tuple avoids allocations
+end
