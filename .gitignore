@@ -1,5 +1,8 @@
-plots/*
-data/**/*
+ShapeAnalysis/plots/*
+ShapeAnalysis/data/**/*
+LarvaStats/plots/*
+LarvaStats/data/*
+LarvaStats/Manifest.toml
 .DS_Store
 **/.DS_Store
 
