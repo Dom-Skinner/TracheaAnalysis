@@ -1,3 +1,5 @@
+import Pkg; Pkg.activate(@__DIR__)
+cd(@__DIR__)
 using DataFrames, CSV, MultivariateStats, LinearAlgebra, StatsBase
 
 function prepare_df(file_name)

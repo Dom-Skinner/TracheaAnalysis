@@ -1,3 +1,5 @@
+import Pkg; Pkg.activate(@__DIR__)
+cd(@__DIR__)
 using CSV, DataFrames
 ### ========= Load tiff files and save as vtk files ========== ###
 

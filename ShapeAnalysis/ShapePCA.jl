@@ -1,3 +1,5 @@
+import Pkg; Pkg.activate(@__DIR__)
+cd(@__DIR__)
 using MultivariateStats
 using DataFrames, CSV
 using StatsBase

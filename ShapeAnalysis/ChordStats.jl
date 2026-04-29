@@ -1,9 +1,10 @@
 # This script calculates chord statistics of all images in a vtk folder. Random chords are drawn between
 # two points and how much of that chord is outside of the alpha shape is recorded. The mean of this value
 # number of non-zero values and the variance of the non-zero values are recorded.
-# It calls a matlab script ChordStats.m, which performs the core computations. 
+# It calls a matlab script ChordStats.m, which performs the core computations.
 # Starting up matlab a bunch of times is inefficient, but the overall code runs in a reasonable time.
-
+import Pkg; Pkg.activate(@__DIR__)
+cd(@__DIR__)
 using MultivariateStats
 using ReadVTK
 using Plots

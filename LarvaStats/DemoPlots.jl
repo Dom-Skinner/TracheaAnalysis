@@ -1,4 +1,6 @@
 # This script is simply to make the demonstration plots that are found in Fig 4 B-C.
+import Pkg; Pkg.activate(@__DIR__)
+cd(@__DIR__)
 using Plots
 using Distributions
 include("Utils.jl")

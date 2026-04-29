@@ -1,8 +1,9 @@
-# This script calculates the sphericity and convex volume ratio of all images in a vtk folder. 
+# This script calculates the sphericity and convex volume ratio of all images in a vtk folder.
 # It calls a matlab script SurfaceArea.m, which is only needed to compute the surface area and volume
-# from an alpha shape and convex hull. Starting up matlab a bunch of times is inefficient, but the 
+# from an alpha shape and convex hull. Starting up matlab a bunch of times is inefficient, but the
 # overall code runs in a reasonable time.
-
+import Pkg; Pkg.activate(@__DIR__)
+cd(@__DIR__)
 using MultivariateStats
 using ReadVTK
 using Plots

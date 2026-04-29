@@ -1,6 +1,7 @@
 # This file fits the liability threshold model to the WT and Het data and makes all relevant plots
 using Pkg
 Pkg.activate(@__DIR__)
+cd(@__DIR__)
 
 include("Utils.jl")
 include("LiabilityThresholdCore.jl")
