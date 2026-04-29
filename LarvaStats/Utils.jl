@@ -31,8 +31,9 @@ function extract_data_one_genotype(path)
 
     y = vcat(total_counts_l, total_counts_r)
     m_idx = vcat(dat.m_idx, dat.m_idx)
+    l_idx = vcat(dat.l_idx, dat.l_idx)
 
-    return y, m_idx
+    return y, m_idx, l_idx
 end
 
 function load_trachea_wide_csv(path)

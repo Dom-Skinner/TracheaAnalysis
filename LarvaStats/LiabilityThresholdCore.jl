@@ -215,7 +215,7 @@ end
 
 # Choose how a y value is converted into "defects".
 # Default below treats y itself as the count being summed.
-DEFECT_SCORE = y -> (y == 1 ? 0.0 : 1.0)   # count only the "1 terminal" category as a non-defect
+DEFECT_SCORE = y -> y#(y == 1 ? 0.0 : 1.0)   # count only the "1 terminal" category as a non-defect
 
 function extract_two_thresh_draws_for_ppc(chn::Chains, M::Integer)
     σ = vec(Array(chn[:σ]))
@@ -313,11 +313,7 @@ function posterior_metamere_defect_stats(chn::Chains,
     draws = extract_two_thresh_draws_for_ppc(chn, dat.M)
     Sfull = draws.S
 
-    draw_ids = if ndraws === nothing || ndraws >= Sfull
-        collect(1:Sfull)
-    else
-        randperm(rng, Sfull)[1:ndraws]
-    end
+    draw_ids = rand(rng, 1:Sfull, ndraws)
 
     S = length(draw_ids)
 
@@ -436,6 +432,244 @@ function ppc_hist_stat(samples::AbstractVector{<:Real},
     return p
 end
 
+####################################################################
+# Posterior predictive checks: larva-to-larva dispersion
+#
+# Requires dat.larva_idx, aligned with dat.y and dat.m_idx.
+# Uses the existing simulate_two_thresh_y(...) function.
+####################################################################
+
+function compact_index(v::AbstractVector)
+    # Converts arbitrary larva labels into 1, 2, ..., L in order of first appearance.
+    @assert all(x -> !ismissing(x), v)
+
+    lookup = Dict{Any,Int}()
+    out = Vector{Int}(undef, length(v))
+
+    for i in eachindex(v)
+        x = v[i]
+        if !haskey(lookup, x)
+            lookup[x] = length(lookup) + 1
+        end
+        out[i] = lookup[x]
+    end
+
+    return out
+end
+
+
+function _get_larva_idx(d; larva_slot::Integer=3)
+    if hasproperty(d, :larva_idx)
+        return getproperty(d, :larva_idx)
+    elseif length(d) >= larva_slot
+        return d[larva_slot]
+    else
+        error("No larva index found.")
+    end
+end
+
+
+function pool_genotypes_with_larvae(data_tot,
+                                    include::AbstractVector{<:Integer};
+                                    larva_slot::Integer=3)
+
+    y     = vcat((data_tot[i][1] for i in include)...)
+    m_idx = vcat((data_tot[i][2] for i in include)...)
+    g_idx = vcat((fill(i, length(data_tot[i][1])) for i in include)...)
+
+    M = maximum(m_idx)
+    @assert length(unique(m_idx)) == M
+
+    larva_parts = Vector{Vector{Int}}()
+    offset = 0
+
+    for i in include
+        li = compact_index(_get_larva_idx(data_tot[i]; larva_slot=larva_slot))
+        push!(larva_parts, li .+ offset)
+        offset += maximum(li)
+    end
+
+    larva_idx = vcat(larva_parts...)
+
+    @assert length(y) == length(m_idx) == length(g_idx) == length(larva_idx)
+
+    return (
+        y = y,
+        m_idx = m_idx,
+        g_idx = g_idx,
+        larva_idx = larva_idx,
+        M = M,
+        L = offset,
+    )
+end
+
+
+function larva_totals(y::AbstractVector,
+                      larva_idx::AbstractVector;
+                      defect_score=identity)
+
+    @assert length(y) == length(larva_idx)
+
+    li = compact_index(larva_idx)
+    L = maximum(li)
+
+    totals = zeros(Float64, L)
+
+    @inbounds for i in eachindex(y)
+        totals[li[i]] += Float64(defect_score(y[i]))
+    end
+
+    return totals
+end
+
+
+function _dispersion_stats_from_totals(totals::AbstractVector{<:Real})
+    μ = mean(totals)
+    v = var(totals)
+
+    return (
+        mean_total = μ,
+        var_total = v,
+        sd_total = sqrt(v),
+        range_total = maximum(totals) - minimum(totals),
+        min_total = minimum(totals),
+        max_total = maximum(totals),
+    )
+end
+
+
+function observed_larva_dispersion_stats(dat; defect_score=identity)
+    @assert hasproperty(dat, :larva_idx)
+
+    totals = larva_totals(
+        dat.y,
+        dat.larva_idx;
+        defect_score=defect_score,
+    )
+
+    return merge(
+        (
+            totals = totals,
+            n_larvae = length(totals),
+        ),
+        _dispersion_stats_from_totals(totals),
+    )
+end
+
+
+function posterior_larva_dispersion_stats(chn::Chains,
+                                          dat;
+                                          ndraws=nothing,
+                                          defect_score=identity,
+                                          rng=Random.GLOBAL_RNG)
+
+    @assert hasproperty(dat, :larva_idx)
+
+    draws = extract_two_thresh_draws_for_ppc(chn, dat.M)
+    Sfull = draws.S
+
+    draw_ids = rand(rng, 1:Sfull,ndraws)
+
+    S = length(draw_ids)
+
+    obs_totals = larva_totals(
+        dat.y,
+        dat.larva_idx;
+        defect_score=defect_score,
+    )
+
+    L = length(obs_totals)
+
+    samples_totals = Matrix{Float64}(undef, S, L)
+    samples_mean   = Vector{Float64}(undef, S)
+    samples_var    = Vector{Float64}(undef, S)
+    samples_sd     = Vector{Float64}(undef, S)
+    samples_range  = Vector{Float64}(undef, S)
+    samples_min    = Vector{Float64}(undef, S)
+    samples_max    = Vector{Float64}(undef, S)
+
+    for (j, s) in enumerate(draw_ids)
+        ysim = simulate_two_thresh_y(
+            draws,
+            s,
+            dat.m_idx,
+            dat.g_idx;
+            rng=rng,
+        )
+
+        totals = larva_totals(
+            ysim,
+            dat.larva_idx;
+            defect_score=defect_score,
+        )
+
+        stats = _dispersion_stats_from_totals(totals)
+
+        samples_totals[j, :] .= totals
+        samples_mean[j]  = stats.mean_total
+        samples_var[j]   = stats.var_total
+        samples_sd[j]    = stats.sd_total
+        samples_range[j] = stats.range_total
+        samples_min[j]   = stats.min_total
+        samples_max[j]   = stats.max_total
+    end
+
+    return (
+        samples_totals = samples_totals,
+        samples_mean = samples_mean,
+        samples_var = samples_var,
+        samples_sd = samples_sd,
+        samples_range = samples_range,
+        samples_min = samples_min,
+        samples_max = samples_max,
+        draw_ids = draw_ids,
+    )
+end
+
+
+function ppc_larva_summary(obs, ppc)
+    function one_row(samples, observed)
+        p_ge = sum(samples .>= observed) / length(samples)
+        p_le = sum(samples .<= observed) / length(samples)
+
+        return (
+            observed = observed,
+            pred_mean = mean(samples),
+            pred_q025 = quantile(samples, 0.025),
+            pred_q50 = quantile(samples, 0.5),
+            pred_q975 = quantile(samples, 0.975),
+            p_ge = p_ge,
+            p_le = p_le,
+            tail_prob = min(p_ge, p_le),
+        )
+    end
+
+    rows = [
+        one_row(ppc.samples_mean,  obs.mean_total),
+        one_row(ppc.samples_var,   obs.var_total),
+        one_row(ppc.samples_sd,    obs.sd_total),
+        one_row(ppc.samples_range, obs.range_total),
+        one_row(ppc.samples_max,   obs.max_total),
+    ]
+
+    return DataFrame(
+        stat = [
+            "mean total per larva",
+            "variance across larvae",
+            "sd across larvae",
+            "range across larvae",
+            "max total in one larva",
+        ],
+        observed = [r.observed for r in rows],
+        pred_mean = [r.pred_mean for r in rows],
+        pred_q025 = [r.pred_q025 for r in rows],
+        pred_q50 = [r.pred_q50 for r in rows],
+        pred_q975 = [r.pred_q975 for r in rows],
+        p_ge = [r.p_ge for r in rows],
+        p_le = [r.p_le for r in rows],
+        tail_prob = [r.tail_prob for r in rows],
+    )
+end
 
 function p_val_emp_error_bars(chn,M,nexp)
     nsamples = length(vec(chn[:lp]))

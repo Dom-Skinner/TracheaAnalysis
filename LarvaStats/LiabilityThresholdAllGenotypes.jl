@@ -245,7 +245,7 @@ for gtype in [1,2,3,4]
     ppc_g = posterior_metamere_defect_stats(
         chn_full,
         dat_g;
-        ndraws=10_000,
+        ndraws=20_000,
         defect_score=DEFECT_SCORE,
     )
 
@@ -278,6 +278,59 @@ end
 plt =  plot(total_plot..., layout=(4, 3), size=(1100, 1200))
 savefig(plt, "plots/posterior_checks_metamere_defects_total.pdf")
 
+
+
+####################################################################################
+# PPC: larva-to-larva dispersion in total terminal cell count
+####################################################################################
+
+larva_ppc_by_genotype = Dict{Int,Any}()
+larva_obs_by_genotype = Dict{Int,Any}()
+larva_summary_by_genotype = Dict{Int,Any}()
+
+total_plot = []
+
+for gtype in [1,3,2,4]
+    dat_g = pool_genotypes_with_larvae(data_tot, [gtype])
+
+    obs_g = observed_larva_dispersion_stats(
+        dat_g;
+        defect_score=DEFECT_SCORE,
+    )
+
+    ppc_g = posterior_larva_dispersion_stats(
+        chn_full,
+        dat_g;
+        ndraws=20_000,
+        defect_score=DEFECT_SCORE,
+    )
+
+    larva_obs_by_genotype[gtype] = obs_g
+    larva_ppc_by_genotype[gtype] = ppc_g
+    larva_summary_by_genotype[gtype] = ppc_larva_summary(obs_g, ppc_g)
+
+    println("\nLarva-level PPC: $(genotype_str[gtype])")
+    display(larva_summary_by_genotype[gtype])
+
+    p_var = ppc_hist_stat(
+        ppc_g.samples_var,
+        obs_g.var_total;
+        xlabel="Variance of total terminal cells across larvae",
+        title="$(genotype_str[gtype]): larva variance",
+    )
+
+    p_range = ppc_hist_stat(
+        ppc_g.samples_range,
+        obs_g.range_total;
+        xlabel="Range of total terminal cells across larvae",
+        title="$(genotype_str[gtype]): larva range",
+    )
+
+    push!(total_plot, p_var, p_range)
+end
+
+plt = plot(total_plot..., layout=(4, 2), size=(950, 1200))
+savefig(plt, "plots/posterior_checks_larva_dispersion_total.pdf")
 
 ####################################################################################
 # Look at variance and difference between metameres as function of genotype shift
