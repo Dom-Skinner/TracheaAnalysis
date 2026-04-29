@@ -22,7 +22,7 @@ end
 
 @inline genotype_shift(g, eff) = eff.bnl[g] + eff.f53s[g]
 
-@model function phenom_two_thresh_no_py(y::AbstractVector{<:Integer},
+@model function liability_threshold(y::AbstractVector{<:Integer},
                                       m_idx::AbstractVector{<:Integer},
                                       g_idx::AbstractVector{<:Integer}, M)
 

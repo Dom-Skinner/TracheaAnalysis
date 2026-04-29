@@ -25,14 +25,14 @@ println("max difference between metameres, WT:",maximum(maximum(emp_freq_bnl,dim
 
 n_draws   = 1000
 n_chains  = 3
-chn_full = sample(phenom_two_thresh_no_py(dat.y.+1,dat.m_idx,dat.g_idx, dat.M), NUTS(),  MCMCThreads(), n_draws,n_chains)
+chn_full = sample(liability_threshold(dat.y.+1,dat.m_idx,dat.g_idx, dat.M), NUTS(),  MCMCThreads(), n_draws,n_chains)
 
 
 @assert all(rhat(chn_full).nt.rhat  .< 1.01) # ensure convergence
 plot(chn_full) # Inspect chain by eye as well
 
 
-map_estimate = maximum_a_posteriori(phenom_two_thresh_no_py(dat.y .+1,dat.m_idx,dat.g_idx, dat.M))
+map_estimate = maximum_a_posteriori(liability_threshold(dat.y .+1,dat.m_idx,dat.g_idx, dat.M))
 μ_vals = [map_estimate.values[Symbol("μ_metamere[$m]")] for m in 1:dat.M]
 σ = map_estimate.values[:σ]
 eff = genotype_effects(map_estimate.values[:Bnl_shift], map_estimate.values[:F53S_shift])

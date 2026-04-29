@@ -42,7 +42,7 @@ for i = 1:4
     
     n_draws   = 1000
     n_chains  = 4
-    model = phenom_two_thresh_no_py(dat_part.y.+1,dat_part.m_idx,dat_part.g_idx, dat_part.M)
+    model = liability_threshold(dat_part.y.+1,dat_part.m_idx,dat_part.g_idx, dat_part.M)
     chn_pooled = sample(model, NUTS(),  MCMCThreads(), n_draws,n_chains)
 
 
@@ -61,7 +61,7 @@ dat = pool_genotypes(data_tot,1:4)
 n_draws   = 1000
 n_chains  = 4
     
-model = phenom_two_thresh_no_py(dat.y.+1,dat.m_idx,dat.g_idx, dat.M)
+model = liability_threshold(dat.y.+1,dat.m_idx,dat.g_idx, dat.M)
 chn_full = sample(model, NUTS(),  MCMCThreads(), n_draws,n_chains)
 @assert all(rhat(chn_full).nt.rhat  .< 1.01) # ensure convergence
 
