@@ -97,7 +97,13 @@ Validates statistical assumptions for the Btl::pYtag FGFR activation analysis (S
 
 ### Dependencies
 
-Julia packages (no `Project.toml`; install individually): `CSV`, `DataFrames`, `MultivariateStats`, `StatsBase`, `Plots`, `ReadVTK`, `HDF5`, `TiffImages`, `WriteVTK`, `Optimization`, `OptimizationOptimisers`, `SciMLSensitivity`, `Zygote`, `ForwardDiff`.
+Julia packages are managed via `ShapeAnalysis/Project.toml`. To install:
+
+```julia
+using Pkg; Pkg.activate("ShapeAnalysis"); Pkg.instantiate()
+```
+
+Key packages: `CSV`, `DataFrames`, `MultivariateStats`, `StatsBase`, `Plots`, `ReadVTK`, `HDF5`, `TiffImages`, `WriteVTK`, `Optimization`, `OptimizationOptimisers`, `SciMLSensitivity`, `Zygote`, `ForwardDiff`.
 
 **MATLAB R2024a** is required for `DirectedSphericity.jl` and `ChordStats.jl`, which call MATLAB scripts in `src/` to compute alpha-shape surface areas and chord statistics.
 
