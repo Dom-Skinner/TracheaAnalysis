@@ -289,7 +289,7 @@ function first_crossing_time(t, y, T)
     return missing
 end
 
-function crossing_table_for_T(df_cross, T)
+function crossing_table_for_T(df_cross, T; time_col = :t_shifted_PC)
     rows = NamedTuple[]
 
     for g in groupby(df_cross, :unique_id)
@@ -298,7 +298,7 @@ function crossing_table_for_T(df_cross, T)
 
         if is_WT || is_successful_mutant
             tcross = first_crossing_time(
-                g.t_shifted_PC,
+                getproperty(g, time_col),
                 g.Normalized_DSRF_Intensity_scaled,
                 T,
             )
@@ -344,37 +344,29 @@ max_T_all_cross = minimum(included_maxima)
 # Edit this range if desired
 Tvals = range(7, 0.95 * max_T_all_cross, length=50)
 
-df_crossings = vcat([crossing_table_for_T(df_cross, Tval) for Tval in Tvals]...)
-
-df_summary = combine(
-    groupby(df_crossings, [:genotype, :T]),
-    :crossing_time => mean => :mean_crossing_time,
-    :crossing_time => sem => :std_crossing_time,
-    nrow => :n,
-)
-
-p = plot(
-    xlabel = "Threshold value",
-    ylabel = "First crossing time",
-    legend = :topleft,
-    grid = false,
-)
-
-for genotype in ["WT", "successful mutant"]
-    s = df_summary[df_summary.genotype .== genotype, :]
-    sort!(s, :T)
-
-    plot!(
-        p,
-        s.T,
-        s.mean_crossing_time,
-        ribbon = s.std_crossing_time,
-        lw = 3,
-        fillalpha = 0.2,
-        label = genotype * " mean ± se",
+function crossing_summary(df_cross, Tvals; time_col = :t_shifted_PC)
+    df_crossings = vcat([crossing_table_for_T(df_cross, Tval; time_col) for Tval in Tvals]...)
+    return combine(
+        groupby(df_crossings, [:genotype, :T]),
+        :crossing_time => mean => :mean_crossing_time,
+        :crossing_time => sem => :std_crossing_time,
+        nrow => :n,
     )
 end
-display(p)
 
-savefig(p, "plots/DSRF_threshold_crossing_time_vs_T.pdf")
+function crossing_plot(df_summary; kwargs...)
+    p = plot(; xlabel = "Threshold value", ylabel = "First crossing time",
+               legend = :topleft, grid = false, kwargs...)
+    for genotype in ["WT", "successful mutant"]
+        s = sort(df_summary[df_summary.genotype .== genotype, :], :T)
+        plot!(p, s.T, s.mean_crossing_time, ribbon = s.std_crossing_time,
+              lw = 3, fillalpha = 0.2, label = genotype * " mean ± se")
+    end
+    return p
+end
+
+p_aligned = crossing_plot(crossing_summary(df_cross, Tvals);               title = "Time aligned")
+p_raw     = crossing_plot(crossing_summary(df_cross, Tvals; time_col = :t); title = "Raw time")
+plt_comb = plot(p_aligned, p_raw, layout = (1, 2), size = (900, 400))
+savefig(plt_comb,"plots/DSRF_threshold_crossing_time_vs_T.pdf")
 
