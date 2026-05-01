@@ -370,3 +370,100 @@ plot!(plt_var,genotype_shift(4, eff)*ones(2),[0,4],l=:dash, color=:blue,label="R
 plot!(plt_var,genotype_shift(2, eff)*ones(2),[0,4],l=:dash, color=:orange,label="MEK F53S shift")
 plot(plt_Δ, plt_var, layout=(2,1))
 savefig("plots/shift_effects_full.pdf")
+
+
+####################################################################################
+# Mutual information between outcome Y and each model input (MAP estimate)
+#
+# Inputs are drawn independently:
+#   bnl allele  ~ Bernoulli(0.5)      [absent: g ∈ {1,2}, present: g ∈ {3,4}]
+#   MEK F53S    ~ Bernoulli(0.5)      [absent: g ∈ {1,3}, present: g ∈ {2,4}]
+#   metamere    ~ Uniform{1,...,8}    [determines μ_m]
+#   noise ε     ~ Normal(0, σ²)       [residual stochasticity]
+#
+# For the three discrete inputs the conditional probabilities are closed-form
+# (ordinal3_probs already integrates over ε).  For ε the conditional outcome
+# is deterministic for every (m, g) pair, so H(Y|ε) is estimated by sampling.
+####################################################################################
+
+shan_ent(p) = -sum(x * log2(x) for x in p if x > 0)
+
+function mutual_information_inputs(μ_vals, σ, eff; N_noise = 100_000)
+    M = length(μ_vals)
+
+    # Marginal P(Y) averaged over all 4 genotypes and M metameres
+    p_y = zeros(3)
+    for g in 1:4, m in 1:M
+        p0, p1, p2 = ordinal3_probs(μ_vals[m] + genotype_shift(g, eff), σ)
+        p_y .+= [p0, p1, p2]
+    end
+    p_y ./= 4M
+    H_Y = shan_ent(p_y)
+
+    # bnl allele
+    H_Y_bnl = 0.0
+    for gs in ([1, 2], [3, 4])
+        pk = zeros(3)
+        for g in gs, m in 1:M
+            p0, p1, p2 = ordinal3_probs(μ_vals[m] + genotype_shift(g, eff), σ)
+            pk .+= [p0, p1, p2]
+        end
+        H_Y_bnl += 0.5 * shan_ent(pk ./ (2M))
+    end
+
+    # MEK F53S allele
+    H_Y_F53S = 0.0
+    for gs in ([1, 3], [2, 4])
+        pk = zeros(3)
+        for g in gs, m in 1:M
+            p0, p1, p2 = ordinal3_probs(μ_vals[m] + genotype_shift(g, eff), σ)
+            pk .+= [p0, p1, p2]
+        end
+        H_Y_F53S += 0.5 * shan_ent(pk ./ (2M))
+    end
+
+    # Metamere identity
+    H_Y_met = 0.0
+    for m in 1:M
+        pk = zeros(3)
+        for g in 1:4
+            p0, p1, p2 = ordinal3_probs(μ_vals[m] + genotype_shift(g, eff), σ)
+            pk .+= [p0, p1, p2]
+        end
+        H_Y_met += (1/M) * shan_ent(pk ./ 4)
+    end
+
+    # Noise ε: condition on a draw; outcome is deterministic for each (m, g)
+    H_Y_noise = 0.0
+    for ε in σ .* randn(N_noise)
+        counts = zeros(3)
+        for g in 1:4, m in 1:M
+            L = μ_vals[m] + genotype_shift(g, eff) + ε
+            counts[L < 0 ? 1 : L < 1 ? 2 : 3] += 1
+        end
+        H_Y_noise += shan_ent(counts ./ (4M))
+    end
+    H_Y_noise /= N_noise
+
+    return (
+        bnl      = H_Y - H_Y_bnl,
+        F53S     = H_Y - H_Y_F53S,
+        metamere = H_Y - H_Y_met,
+        noise    = H_Y - H_Y_noise,
+        H_Y      = H_Y,
+    )
+end
+
+mi = mutual_information_inputs(μ_vals, σ, eff)
+println("\nMutual information (bits) with outcome Y  [H(Y) = $(round(mi.H_Y, digits=4)) bits]:")
+println("  bnl allele : $(round(mi.bnl,      digits=4))")
+println("  MEK F53S   : $(round(mi.F53S,     digits=4))")
+println("  metamere   : $(round(mi.metamere, digits=4))")
+println("  noise ε    : $(round(mi.noise,    digits=4))")
+
+bar(["bnl", "MEK F53S", "metamere", "noise ε"],
+    [mi.bnl, mi.F53S, mi.metamere, mi.noise],
+    ylabel = "Mutual information (bits)",
+    label  = false,
+    grid   = false)
+savefig("plots/mutual_information.pdf")
