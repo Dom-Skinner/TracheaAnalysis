@@ -695,3 +695,41 @@ function p_val_emp_error_bars(chn,M,nexp)
     end
     return p_vals_tot
 end
+
+
+
+function p_val_emp_error_bars_MAP(mp_val,M,nexp,gtype)
+    
+    p_vals = zeros(M, 3)
+    μ_vals = [mp_val.values[Symbol("μ_metamere[$m]")] for m in 1:M]
+    Bnl_shift = mp_val.values[:Bnl_shift]
+    F53S_shift = mp_val.values[:F53S_shift]
+    σ = mp_val.values[:σ]
+    eff = genotype_effects(Bnl_shift, F53S_shift)
+    for m in 1:M
+        μ_obs = μ_vals[m] + genotype_shift(gtype, eff)
+        
+        p0, p1, p2 = ordinal3_probs( μ_obs, σ)
+        p_vals[m,1] = p0; p_vals[m,2] = p1; p_vals[m,3] = p2
+    end
+    
+    nsamples = 2000
+    
+    p_vals_emp = zeros(nsamples, M, 3)
+    for idx = 1:nsamples
+        for m in 1:M
+            qsample = rand(Categorical(p_vals[m,:]), nexp)
+            for i = 1:3
+                p_vals_emp[idx, m, i] =  sum(qsample .== i) / nexp
+            end
+        end
+
+    end
+    p_quantile = zeros(M, 3, 2)  # M x 3 x 2 (lower and upper)
+    for l in 1:3, m in 1:M
+        p_quantile[m, l, :] .= quantile(p_vals_emp[:,m,l], [0.025, 0.975])
+    end
+    return  p_quantile
+
+    
+end

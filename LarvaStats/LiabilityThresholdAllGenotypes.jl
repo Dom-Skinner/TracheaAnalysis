@@ -80,9 +80,9 @@ for gtype in [1,3,2,4]
 
     mp_val = map_partially_withheld[gtype]
     p_vals = p_vals_compute(mp_val,gtype,dat.M)
-
-    p_vals_err = p_val_emp_error_bars(chn_partially_withheld[gtype], dat.M,nexp)   
-    yerr = (vec(p_vals) - vec(p_vals_err[gtype][:,:,1]), vec(p_vals_err[gtype][:,:,2]) - vec(p_vals))
+    p_vals_err = p_val_emp_error_bars_MAP(mp_val,dat.M,nexp[gtype],gtype)
+    #p_vals_err = p_val_emp_error_bars(chn_partially_withheld[gtype], dat.M,nexp)   
+    yerr = (vec(p_vals) - vec(p_vals_err[:,:,1]), vec(p_vals_err[:,:,2]) - vec(p_vals))
     emp_freq = empirical_freq(data_tot[gtype][1], data_tot[gtype][2]; M=dat.M)
     scatter!(plt, vec(emp_freq),vec(p_vals), label=genotype_str[gtype],yerr=yerr)
 end
