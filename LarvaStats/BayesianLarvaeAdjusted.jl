@@ -229,11 +229,22 @@ function ppc_hist(samples::AbstractVector{<:Real}, observed::Real; xlabel::Strin
     return p
 end
 
+function concordance_stat(left, right)
+    n_00 = sum((left .== 0) .& (right .== 0))
+    n_11 = sum((left .== 1) .& (right .== 1))
+    n_01 = sum((left .== 0) .& (right .== 1))
+    n_10 = sum((left .== 1) .& (right .== 0))
+    (n_01 * n_10 == 0) && return NaN
+    return (n_00 * n_11) / (n_01 * n_10)
+end
+
 LOO_score_arr = []
 LOO_score_se_arr = []
 LOO_score_arr_hier_tot = []
 LOO_score_arr_pooled_tot = []
 tau_plot_arr = []
+
+LOO_COMPUTE = false
 
 for tag in ["RESCUE", "F53S (GOF MEK)", "BNL MUTANT", "WT"]
     
@@ -243,8 +254,9 @@ for tag in ["RESCUE", "F53S (GOF MEK)", "BNL MUTANT", "WT"]
     dat = build_model_data(df)
     obs = observed_error_extremes(dat)
 
-
-    LOO_score_pooled = compute_LOO_score_pooled(dat)
+    if LOO_COMPUTE
+        LOO_score_pooled = compute_LOO_score_pooled(dat)
+    end
 
     n_adapt   = 1000
     n_draws   = 2000
@@ -268,19 +280,23 @@ for tag in ["RESCUE", "F53S (GOF MEK)", "BNL MUTANT", "WT"]
     p3 = ppc_hist(ppc_pooled.samples_min, obs.min_errors;
         xlabel="Min errors in any metamere", title="Posterior check")
 
-    LOO_score_hier = compute_LOO_score_hier(dat)
+    if LOO_COMPUTE
+        LOO_score_hier = compute_LOO_score_hier(dat)
+    end
 
-    println("rhat convergence < 0.01?, ", maximum(abs.(1 .- summarize(chn_pooled).nt.rhat)))
-    println("rhat convergence < 0.01?, ", maximum(abs.(1 .- summarize(chn_full).nt.rhat)))
-
+    
     se = x -> sqrt(var(x)/length(x))
-    push!(LOO_score_arr, mean(LOO_score_hier .- LOO_score_pooled))
-    push!(LOO_score_se_arr, se(LOO_score_hier .- LOO_score_pooled))
-    push!(LOO_score_arr_hier_tot,LOO_score_hier)
-    push!(LOO_score_arr_pooled_tot,LOO_score_pooled)
+    if LOO_COMPUTE
+        push!(LOO_score_arr, mean(LOO_score_hier .- LOO_score_pooled))
+        push!(LOO_score_se_arr, se(LOO_score_hier .- LOO_score_pooled))
+        push!(LOO_score_arr_hier_tot,LOO_score_hier)
+        push!(LOO_score_arr_pooled_tot,LOO_score_pooled)
+    end
 
 
     chn_full   = sample(hier_model(hcat(dat.left,dat.right), dat.l_idx, dat.L, dat.m_idx, dat.M), NUTS(),  MCMCThreads(), n_draws,n_chains)
+    println("rhat convergence < 0.01?, ", maximum(abs.(1 .- summarize(chn_pooled).nt.rhat)))
+    println("rhat convergence < 0.01?, ", maximum(abs.(1 .- summarize(chn_full).nt.rhat)))
 
 
     pvecs = posterior_probs_full(chn_full, dat.l_idx, dat.m_idx)
@@ -322,13 +338,42 @@ for tag in ["RESCUE", "F53S (GOF MEK)", "BNL MUTANT", "WT"]
     push!(tau_plot_arr, p7)
 
     savefig("plots/larva_adjusted_pooled_v_hierarchical_"*tag*".pdf")
+
+    # PPC: concordance odds ratio n00*n11/(n01*n10) per metamere
+    obs_conc  = [concordance_stat(dat.left[dat.m_idx .== m], dat.right[dat.m_idx .== m]) for m in 1:dat.M]
+    post_conc = [Float64[] for _ in 1:dat.M]
+    for s in 1:min(500, length(draws_full.mu))
+        zsim = hier_model_sample(draws_full.mu[s], draws_full.tau[s], draws_full.sigma_l[s],
+                                  vec(draws_full.alpha_raw[s,:]), vec(draws_full.b_raw[s,:]),
+                                  dat.l_idx, dat.m_idx)
+        for m in 1:dat.M
+            idx  = dat.m_idx .== m
+            stat = concordance_stat(zsim[idx, 1], zsim[idx, 2])
+            !isnan(stat) && push!(post_conc[m], stat)
+        end
+    end
+    conc_plots = map(1:dat.M) do m
+        p = histogram(post_conc[m]; lt=:stephist, normalize=true, label="Model",
+                      xlabel="n00*n11 / (n01*n10)", ylabel="Density",
+                      title="Metamere $(m+1)", grid=false, titlefontsize=10)
+        vline!(p, [obs_conc[m]]; label="Data")
+        if !isnan(obs_conc[m]) && !isempty(post_conc[m])
+            tail_prob = min(mean(post_conc[m] .>= obs_conc[m]), mean(post_conc[m] .<= obs_conc[m]))
+            annotate!(p, (obs_conc[m], 0.05, text("p=$(round(tail_prob, digits=3))", :left, 9)))
+        end
+        p
+    end
+    ncols = ceil(Int, dat.M / 2)
+    plot(conc_plots..., layout=(2, ncols), size=(300*ncols, 600), plot_title=tag)
+    savefig("plots/concordance_ppc_"*tag*".pdf")
 end
 
-
-plot([0.5,4.5], [0,0], ls=:dash, lc=:black, label=false)
-scatter!([4,3,2,1],LOO_score_arr,yerr=LOO_score_se_arr, label=false, 
-    xticks=(1:4, ["WT","BNL MUTANT", "F53S","RESCUE"]), xlims=(0.5,4.5), ylabel="ΔLOO",grid=false)
-savefig("plots/LOO_scores_pooled_v_hierarchical.pdf")
+if LOO_COMPUTE
+    plot([0.5,4.5], [0,0], ls=:dash, lc=:black, label=false)
+    scatter!([4,3,2,1],LOO_score_arr,yerr=LOO_score_se_arr, label=false, 
+        xticks=(1:4, ["WT","BNL MUTANT", "F53S","RESCUE"]), xlims=(0.5,4.5), ylabel="ΔLOO",grid=false)
+    savefig("plots/LOO_scores_pooled_v_hierarchical.pdf")
+end
 
 plot(tau_plot_arr..., layout=(2,2), size=(800,600))
 savefig("plots/tau_posteriors.pdf")
