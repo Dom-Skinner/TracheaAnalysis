@@ -1,6 +1,6 @@
 # TracheaAnalysis
 
-Code accompanying **"A quantitative model of a phenotypically variable structural defect"** (Simpkins, Skinner et al., 2026).
+Code accompanying **"A quantitative model of a phenotypically variable genetic defect"** (Simpkins, Skinner et al., 2026).
 
 The code here implements two analyses:
 
