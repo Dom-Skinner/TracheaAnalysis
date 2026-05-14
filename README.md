@@ -7,6 +7,8 @@ The code here implements two analyses:
 1. **Statistical modeling** of larval endpoint data (terminal cell counts per metamere) using a liability-threshold framework fit by Bayesian inference.
 2. **Live imaging shape analysis** of dorsal branch morphology and DSRF::sfGFP fluorescence dynamics.
 
+Raw data is not included can be made available upon reasonable request.
+
 ---
 
 ## Repository layout
@@ -125,7 +127,7 @@ Packages used: `CSV`, `DataFrames`, `MultivariateStats`, `StatsBase`, `Plots`, `
 | `processed/sphericity/` | Per-experiment HDF5 files with sphericity and volume ratio |
 | `processed/chords/` | Per-experiment HDF5 files with chord statistics |
 
-Experiments labelled `*_bnl` are *bnl*−/+; the rest are wild type. The raw data is too large to be stored on github, but can be made available upon reasonable request.
+Experiments labelled `*_bnl` are *bnl*−/+; the rest are wild type. Raw data can be made available upon reasonable request.
 
 ### Pipeline
 
