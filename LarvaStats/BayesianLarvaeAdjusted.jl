@@ -242,7 +242,8 @@ LOO_score_arr = []
 LOO_score_se_arr = []
 LOO_score_arr_hier_tot = []
 LOO_score_arr_pooled_tot = []
-tau_plot_arr = []
+tau_plot_arr     = []
+sigma_l_plot_arr = []
 
 LOO_COMPUTE = false
 
@@ -334,15 +335,28 @@ for tag in ["RESCUE", "F53S (GOF MEK)", "BNL MUTANT", "WT"]
         )
         
 
+    p8 = histogram(
+        draws_full.sigma_l;
+            xlabel="Larva effect magnitude",
+            ylabel="Density",
+            lt=:stephist,
+            grid=false,
+            normalize=true,
+            title = tag,
+            label=false,
+            xlims=(0,maximum(draws_full.sigma_l)*1.1)
+        )
+
     plot(p1,p2,p3,p4,p5,p6, layout=(2,3),size=(900,600))
     push!(tau_plot_arr, p7)
+    push!(sigma_l_plot_arr, p8)
 
     savefig("plots/larva_adjusted_pooled_v_hierarchical_"*tag*".pdf")
 
     # PPC: concordance odds ratio n00*n11/(n01*n10) per metamere
     obs_conc  = [concordance_stat(dat.left[dat.m_idx .== m], dat.right[dat.m_idx .== m]) for m in 1:dat.M]
     post_conc = [Float64[] for _ in 1:dat.M]
-    for s in 1:min(500, length(draws_full.mu))
+    for s in 1:min(2000, length(draws_full.mu))
         zsim = hier_model_sample(draws_full.mu[s], draws_full.tau[s], draws_full.sigma_l[s],
                                   vec(draws_full.alpha_raw[s,:]), vec(draws_full.b_raw[s,:]),
                                   dat.l_idx, dat.m_idx)
@@ -377,3 +391,6 @@ end
 
 plot(tau_plot_arr..., layout=(2,2), size=(800,600))
 savefig("plots/tau_posteriors.pdf")
+
+plot(sigma_l_plot_arr..., layout=(2,2), size=(800,600))
+savefig("plots/sigma_l_posteriors.pdf")

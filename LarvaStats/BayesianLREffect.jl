@@ -302,7 +302,7 @@ for tag in ["RESCUE", "F53S (GOF MEK)", "BNL MUTANT", "WT"]
 
     obs_frac_00, obs_frac_11 = concordant_fracs(hcat(dat.left, dat.right))
 
-    LOO_score_pooled = compute_LOO_score_pooled_lr(dat)
+   # LOO_score_pooled = compute_LOO_score_pooled_lr(dat)
 
     n_draws  = 2000
     n_chains = 4
@@ -324,15 +324,15 @@ for tag in ["RESCUE", "F53S (GOF MEK)", "BNL MUTANT", "WT"]
     p3 = ppc_hist(ppc_pooled.samples_min, obs.min_errors;
         xlabel="Min errors in any metamere", title="Posterior check")
 
-    LOO_score_hier = compute_LOO_score_hier_lr(dat)
+   # LOO_score_hier = compute_LOO_score_hier_lr(dat)
 
     println("rhat pooled < 0.01?, ", maximum(abs.(1 .- summarize(chn_pooled).nt.rhat)))
 
     se = x -> sqrt(var(x)/length(x))
-    push!(LOO_score_arr, mean(LOO_score_hier .- LOO_score_pooled))
-    push!(LOO_score_se_arr, se(LOO_score_hier .- LOO_score_pooled))
-    push!(LOO_score_arr_hier_tot, LOO_score_hier)
-    push!(LOO_score_arr_pooled_tot, LOO_score_pooled)
+   # push!(LOO_score_arr, mean(LOO_score_hier .- LOO_score_pooled))
+   # push!(LOO_score_se_arr, se(LOO_score_hier .- LOO_score_pooled))
+   # push!(LOO_score_arr_hier_tot, LOO_score_hier)
+   # push!(LOO_score_arr_pooled_tot, LOO_score_pooled)
 
     chn_full = sample(hier_lr_model(hcat(dat.left, dat.right), dat.l_idx, dat.L, dat.m_idx, dat.M),
                       NUTS(), MCMCThreads(), n_draws, n_chains)
@@ -400,12 +400,13 @@ for tag in ["RESCUE", "F53S (GOF MEK)", "BNL MUTANT", "WT"]
     savefig("plots/lr_concordant_ppc_"*tag*".pdf")
 end
 
-
+#=
 plot([0.5, 4.5], [0, 0], ls=:dash, lc=:black, label=false)
 scatter!([4, 3, 2, 1], LOO_score_arr, yerr=LOO_score_se_arr, label=false,
     xticks=(1:4, ["WT", "BNL MUTANT", "F53S", "RESCUE"]), xlims=(0.5, 4.5),
     ylabel="ΔLOO", grid=false)
 savefig("plots/lr_LOO_scores_pooled_v_hierarchical.pdf")
+=#
 
 plot(tau_plot_arr..., layout=(2,2), size=(800,600))
 savefig("plots/lr_tau_posteriors.pdf")
