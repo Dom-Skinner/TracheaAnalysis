@@ -2,7 +2,7 @@
 
 Code accompanying **"A quantitative model of a phenotypically variable structural defect"** (Simpkins, Skinner et al., 2026).
 
-The code here implements two complementary analyses:
+The code here implements two analyses:
 
 1. **Statistical modeling** of larval endpoint data (terminal cell counts per metamere) using a liability-threshold framework fit by Bayesian inference.
 2. **Live imaging shape analysis** of dorsal branch morphology and DSRF::sfGFP fluorescence dynamics.
@@ -28,7 +28,7 @@ Julia packages are managed via `LarvaStats/Project.toml`. To install:
 using Pkg; Pkg.activate("LarvaStats"); Pkg.instantiate()
 ```
 
-Key packages: `Turing`, `MCMCChains`, `Distributions`, `Optim`, `Plots`, `StatsPlots`, `CSV`, `DataFrames`.
+Packages used: `Turing`, `MCMCChains`, `Distributions`, `Optim`, `Plots`, `StatsPlots`, `CSV`, `DataFrames`.
 
 ### Data (`LarvaStats/data/`)
 
@@ -85,14 +85,6 @@ Tests whether metamere-specific effects are needed, separately for each genotype
 - `plots/LOO_scores_pooled_v_hierarchical.pdf` — ΔLOO comparing pooled and hierarchical models across genotypes
 - `plots/concordance_ppc_<genotype>.pdf` — posterior predictive check for the left-right concordance odds ratio n₀₀·n₁₁/(n₀₁·n₁₀) per metamere
 
-#### `BayesianLREffect.jl`
-Extends `BayesianLarvaeAdjusted.jl` by adding a per-observation left-right correlation parameter σ_lr — a shared random effect that induces concordance between the left and right sides of the same metamere half, analogous to the per-metamere effect τ. Produces:
-- `plots/lr_posterior_checks_<genotype>.pdf` — posterior and predictive check plots per genotype
-- `plots/lr_LOO_scores_pooled_v_hierarchical.pdf` — ΔLOO comparing pooled and hierarchical LR models across genotypes
-- `plots/lr_tau_posteriors.pdf` — posterior distributions of τ across all genotypes
-- `plots/lr_sigma_lr_posteriors.pdf` — posterior distributions of σ_lr (left-right correlation) across all genotypes
-- `plots/lr_concordant_ppc_<genotype>.pdf` — posterior predictive check for the fraction of (0,0) and (1,1) concordant pairs
-
 #### `DemoPlots.jl`
 Makes illustration plots for the paper (Fig. 4B–C). Produces:
 - `plots/threshold_illustration.pdf` — Gaussian liability with a step function output (Fig. 4B)
@@ -100,7 +92,7 @@ Makes illustration plots for the paper (Fig. 4B–C). Produces:
 - `plots/probabilities_traj.pdf` — Gaussian density and pie chart visualizations (Fig. 4C)
 
 #### `pYtagNormalityTest.jl`
-Validates statistical assumptions for the Btl::pYtag FGFR activation analysis (SI Section II). Performs Shapiro–Wilk normality tests and F-tests of variance equality on log-transformed per-embryo means of puncta count and peak intensity. Produces `control_mutant_histograms.png`.
+Validates statistical assumptions for the Btl::pYtag FGFR activation analysis (SI Section II). Performs Shapiro–Wilk normality tests and F-tests of variance equality on log-transformed per-embryo means of puncta count and peak intensity.
 
 ---
 
@@ -114,7 +106,7 @@ Julia packages are managed via `ShapeAnalysis/Project.toml`. To install:
 using Pkg; Pkg.activate("ShapeAnalysis"); Pkg.instantiate()
 ```
 
-Key packages: `CSV`, `DataFrames`, `MultivariateStats`, `StatsBase`, `Plots`, `ReadVTK`, `HDF5`, `TiffImages`, `WriteVTK`, `Optimization`, `OptimizationOptimisers`, `SciMLSensitivity`, `Zygote`, `ForwardDiff`.
+Packages used: `CSV`, `DataFrames`, `MultivariateStats`, `StatsBase`, `Plots`, `ReadVTK`, `HDF5`, `TiffImages`, `WriteVTK`, `Optimization`, `OptimizationOptimisers`, `SciMLSensitivity`, `Zygote`, `ForwardDiff`.
 
 **MATLAB R2024a** is required for `DirectedSphericity.jl` and `ChordStats.jl`, which call MATLAB scripts in `src/` to compute alpha-shape surface areas and chord statistics.
 
@@ -133,7 +125,7 @@ Key packages: `CSV`, `DataFrames`, `MultivariateStats`, `StatsBase`, `Plots`, `R
 | `processed/sphericity/` | Per-experiment HDF5 files with sphericity and volume ratio |
 | `processed/chords/` | Per-experiment HDF5 files with chord statistics |
 
-Experiments labelled `*_bnl` are *bnl*−/+; the rest are wild type.
+Experiments labelled `*_bnl` are *bnl*−/+; the rest are wild type. The raw data is too large to be stored on github, but can be made available upon reasonable request.
 
 ### Pipeline
 
