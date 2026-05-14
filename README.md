@@ -45,10 +45,10 @@ Key packages: `Turing`, `MCMCChains`, `Distributions`, `Optim`, `Plots`, `StatsP
 ### Scripts
 
 #### `Utils.jl`
-Shared utilities included by all other `LarvaStats` scripts. 
+Shared utilities included by all other `LarvaStats` scripts.
 
 #### `LiabilityThresholdCore.jl`
-Defines the Turing.jl liability-threshold model (`liability_threshold`) and all associated utilities. 
+Defines the Turing.jl liability-threshold model (`liability_threshold`) and all associated utilities.
 
 Also contains functions for:
 - Extracting posterior draws and computing MAP estimates.
@@ -57,39 +57,50 @@ Also contains functions for:
 - Leave-one-out cross-validation.
 
 #### `LiabilityThresholdWtBnl.jl`
-Fits the model to WT and *bnl*−/+ data only. Run this script to reproduce the two-genotype analysis. Produces:
-- `plots/FitsForBnl.pdf` — MAP liability distributions for WT and *bnl*−/+
+Fits the model to WT and *bnl*−/+ data only. Produces:
+- `plots/FitsForBnl.pdf` — MAP liability distributions for WT and *bnl*−/+ (Fig. 4D)
 - `plots/effect_sizes_wt_bnl.pdf` — posterior boxplots of stochasticity σ, metamere-to-metamere variation, and the Bnl shift
-- `plots/shift_effects.pdf` — max probability difference between metameres and total outcome variance as a function of genotype shift
-- `plots/posterior_checks_metamere_defects_WT_bnl.pdf` — posterior predictive checks on max/min/avg defects per metamere (SI Figs. S8–S9)
+- `plots/shift_effects.pdf` — max probability difference between metameres and total outcome variance as a function of genotype shift (contributes to SI Fig. S4)
+- `plots/posterior_checks_metamere_defects_WT_bnl.pdf` — posterior predictive checks on max/min defects per metamere; panels assembled into SI Fig. S1
 - `plots/posterior_checks_larva_dispersion_wt_bnl.pdf` — posterior predictive checks on larva-to-larva variation
-- `plots/stacked_bar_ppc_wt_bnl.pdf` — stacked bar posterior predictive samples by eye
+- `plots/stacked_bar_ppc_wt_bnl.pdf` — stacked bar posterior predictive samples
 
 #### `LiabilityThresholdAllGenotypes.jl`
 Fits the model to all four genotypes, including leave-one-out cross-validation (fit on 3 genotypes, predict the held-out 4th). Produces:
-- `plots/full_predicted.pdf` — empirical frequency vs. model-predicted probability (Fig. 6B)
-- `plots/liability_dists_full_fit.pdf` — MAP liability distributions for all four genotypes
-- `plots/liability_dists_prediction_rescue.pdf` — predicted distributions for rescue, from the model withheld from that genotype
-- `plots/effect_sizes_full.pdf` — posterior boxplots of stochasticity, metamere variation, Bnl shift, and F53S shift
-- `plots/posterior_checks_metamere_defects_total.pdf` — posterior predictive checks for all four genotypes (SI Figs. S8–S11)
+- `plots/full_predicted.pdf` — empirical frequency vs. model-predicted probability
+- `plots/liability_dists_full_fit.pdf` — MAP liability distributions for all four genotypes (Fig. 5I)
+- `plots/liability_dists_prediction_rescue.pdf` — predicted distributions for the rescue genotype, from the model fitted without it
+- `plots/effect_sizes_full.pdf` — posterior boxplots of stochasticity, metamere variation, Bnl shift, and F53S shift (Fig. 6A)
+- `plots/posterior_checks_metamere_defects_total.pdf` — posterior predictive checks for all four genotypes; panels assembled into SI Fig. S1
 - `plots/posterior_checks_larva_dispersion_total.pdf` — larva-to-larva dispersion posterior predictive checks for all four genotypes
-- `plots/shift_effects_full.pdf` — metamere probability differences and variance as a function of genotype shift (Fig. 4E)
-- `plots/stacked_bar_ppc.pdf` — stacked bar posterior predictive samples for all four genotypes
+- `plots/shift_effects_full.pdf` — metamere probability differences and variance as a function of genotype shift (SI Fig. S4)
+- `plots/stacked_bar_ppc.pdf` — stacked bar posterior predictive samples for all four genotypes (SI Fig. S5)
+- `plots/mutual_information.pdf` — mutual information between each input (bnl allele, MEK F53S, metamere, noise ε) and the outcome
 
 #### `BayesianLarvaeAdjusted.jl`
 Tests whether metamere-specific effects are needed, separately for each genotype. Fits two hierarchical logistic models per genotype — a pooled model (no metamere effects) and a hierarchical model (per-metamere random effects) — both with larva-level random effects. Uses leave-one-larva-out cross-validation (ΔLOO) to compare them. Produces:
-- `plots/larva_adjusted_pooled_v_hierarchical_<genotype>.pdf` — posterior and predictive check plots for each genotype (SI Figs. S1–S4)
-- `plots/LOO_scores_pooled_v_hierarchical.pdf` — ΔLOO comparing models across all genotypes (SI Fig. S5)
-- `plots/tau_posteriors.pdf` — posterior distributions of the metamere effect magnitude τ
+- `plots/larva_adjusted_pooled_v_hierarchical_<genotype>.pdf` — posterior and predictive check plots per genotype; panels assembled into SI Fig. S1
+- `plots/tau_posteriors.pdf` — posterior distributions of τ (metamere effect magnitude) across all genotypes (SI Fig. S1, panel E)
+- `plots/sigma_l_posteriors.pdf` — posterior distributions of σ_L (larva effect magnitude) across all genotypes
+- `plots/LOO_scores_pooled_v_hierarchical.pdf` — ΔLOO comparing pooled and hierarchical models across genotypes
+- `plots/concordance_ppc_<genotype>.pdf` — posterior predictive check for the left-right concordance odds ratio n₀₀·n₁₁/(n₀₁·n₁₀) per metamere
+
+#### `BayesianLREffect.jl`
+Extends `BayesianLarvaeAdjusted.jl` by adding a per-observation left-right correlation parameter σ_lr — a shared random effect that induces concordance between the left and right sides of the same metamere half, analogous to the per-metamere effect τ. Produces:
+- `plots/lr_posterior_checks_<genotype>.pdf` — posterior and predictive check plots per genotype
+- `plots/lr_LOO_scores_pooled_v_hierarchical.pdf` — ΔLOO comparing pooled and hierarchical LR models across genotypes
+- `plots/lr_tau_posteriors.pdf` — posterior distributions of τ across all genotypes
+- `plots/lr_sigma_lr_posteriors.pdf` — posterior distributions of σ_lr (left-right correlation) across all genotypes
+- `plots/lr_concordant_ppc_<genotype>.pdf` — posterior predictive check for the fraction of (0,0) and (1,1) concordant pairs
 
 #### `DemoPlots.jl`
 Makes illustration plots for the paper (Fig. 4B–C). Produces:
-- `plots/threshold_illustration.pdf` — Gaussian liability with a step function output
-- `plots/simplex_traj.pdf` — map between the (μ, σ) parameter space and the probability simplex
-- `plots/probabilities_traj.pdf` — Gaussian density and pie chart visualizations
+- `plots/threshold_illustration.pdf` — Gaussian liability with a step function output (Fig. 4B)
+- `plots/simplex_traj.pdf` — map between the (μ, σ) parameter space and the probability simplex (Fig. 4C)
+- `plots/probabilities_traj.pdf` — Gaussian density and pie chart visualizations (Fig. 4C)
 
 #### `pYtagNormalityTest.jl`
-Validates statistical assumptions for the Btl::pYtag FGFR activation analysis (SI Section III). Performs Shapiro–Wilk normality tests and F-tests of variance equality on log-transformed per-embryo means of puncta count and peak intensity. Produces `control_mutant_histograms.png`.
+Validates statistical assumptions for the Btl::pYtag FGFR activation analysis (SI Section II). Performs Shapiro–Wilk normality tests and F-tests of variance equality on log-transformed per-embryo means of puncta count and peak intensity. Produces `control_mutant_histograms.png`.
 
 ---
 
@@ -163,15 +174,18 @@ Applies PCA to the ten shape features (elongation, sphericity, chord fraction, v
 #### Step 7 — `AlignCoords.jl`
 Time-aligns the different imaging experiments by fitting a tanh sigmoid to the PC1 (morphology) trajectories and minimizing per-experiment time offsets (only timepoints ≤ 175 min are used for alignment). Also fits alignment offsets using the DSRF intensity trajectories for comparison.
 
-Produces the final plots used in the paper:
+Produces:
 - `plots/Unaligned_data.pdf` / `plots/Aligned_to_PC_data.pdf` — all shape features and DSRF before and after alignment
 - `plots/DSRF_Intensity_in_time.pdf` / `plots/DSRF_Scaled_Intensity_in_time.pdf` — DSRF trajectories (Fig. 2G–H)
 - `plots/DSRF_versus_Morphology.pdf` — overlay of DSRF and morphology PC1 trajectories
-- `plots/DSRF_threshold_crossing_time_vs_T.pdf` — DSRF threshold crossing time vs. threshold level for WT and successful mutant branches
 - `plots/PC_full_tmp2.pdf` — PCA scatter colored by aligned time (Fig. 3F)
 - `plots/AlignCoords.pdf` — scatter of morphology vs. DSRF alignment time shifts
 
 Saves the final analysis dataset to `data/processed/data_with_alignment.csv`.
+
+#### Step 8 — `DSRFCrossingTime.jl`
+Loads `data/processed/data_with_alignment.csv` and computes the first DSRF threshold crossing time across a range of intensity threshold values, separately for WT and successful *bnl*−/+ branches. Produces:
+- `plots/DSRF_threshold_crossing_time_vs_T.pdf` — mean first-crossing time ± s.e. vs. threshold value, shown for both time-aligned (PC1) and raw time axes (SI Fig. S7)
 
 ### `src/Utils.jl`
 Julia utilities shared across ShapeAnalysis scripts (image loading helpers, data reshaping).
