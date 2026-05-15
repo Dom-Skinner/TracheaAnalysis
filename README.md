@@ -2,187 +2,98 @@
 
 Code accompanying **"A quantitative model of a phenotypically variable genetic defect"** (Simpkins, Skinner et al., 2026).
 
-The code here implements two analyses:
+The code implements two complementary analyses:
 
 1. **Statistical modeling** of larval endpoint data (terminal cell counts per metamere) using a liability-threshold framework fit by Bayesian inference.
 2. **Live imaging shape analysis** of dorsal branch morphology and DSRF::sfGFP fluorescence dynamics.
 
-Raw data is not included can be made available upon reasonable request.
+Raw data is not included and can be made available upon reasonable request.
 
 ---
 
 ## Repository layout
 
 ```
-LarvaStats/      Julia scripts and data for the statistical analysis
-ShapeAnalysis/   Julia scripts (+ MATLAB helpers) for shape and fluorescence analysis
+LarvaStats/        Julia scripts and data for the statistical analysis
+ShapeAnalysis/     Julia scripts (+ MATLAB helpers) for shape and fluorescence analysis
+PunctaCounting/    Python notebook and module for pYtag puncta quantification
 ```
 
 ---
 
 ## LarvaStats
 
-### Dependencies
-
 Julia packages are managed via `LarvaStats/Project.toml`. To install:
-
 ```julia
 using Pkg; Pkg.activate("LarvaStats"); Pkg.instantiate()
 ```
 
-Packages used: `Turing`, `MCMCChains`, `Distributions`, `Optim`, `Plots`, `StatsPlots`, `CSV`, `DataFrames`.
-
-### Data (`LarvaStats/data/`)
-
-| File | Contents |
-|---|---|
-| `Raw Cell Counts - All Genotypes - Raw Counts - WT.csv` | Per-larva, per-metamere terminal cell counts (0–4), wild type |
-| `Raw Cell Counts - All Genotypes - Raw Counts - BNL MUTANT.csv` | Same, *bnl*−/+ |
-| `Raw Cell Counts - All Genotypes - Raw Counts - F53S (GOF MEK).csv` | Same, MEK F53S gain-of-function |
-| `Raw Cell Counts - All Genotypes - Raw Counts - RESCUE.csv` | Same, MEK F53S; *bnl*−/+ rescue |
-| `Raw Cell Counts - All Genotypes - Binarized - *.csv` | Binarized versions of the above (used by `BayesianLarvaeAdjusted.jl`) |
-| `CONTROL_pytag_puncta_branch_metrics_refactored_25IQR.csv` | Btl::pYtag FGFR activation metrics, wild type |
-| `MUTANT_pytag_puncta_branch_metrics_refactored_25IQR.csv` | Same, *bnl*−/+ |
+Raw data would be in `LarvaStats/data/` containing per-larva, per-metamere terminal cell count CSVs (raw counts 0–4 and binarized versions) for four genotypes (WT, *bnl*−/+, MEK F53S, MEK F53S/*bnl*−/+), plus Btl::pYtag FGFR activation metrics for WT and *bnl*−/+.
 
 ### Scripts
 
-#### `Utils.jl`
-Shared utilities included by all other `LarvaStats` scripts.
-
-#### `LiabilityThresholdCore.jl`
-Defines the Turing.jl liability-threshold model (`liability_threshold`) and all associated utilities.
-
-Also contains functions for:
-- Extracting posterior draws and computing MAP estimates.
-- Running posterior predictive checks on metamere-level defect statistics.
-- Computing larva-to-larva dispersion statistics.
-- Leave-one-out cross-validation.
+#### `Utils.jl` and `LiabilityThresholdCore.jl`
+Shared utilities and the Turing.jl `liability_threshold` model, included by all analysis scripts. `LiabilityThresholdCore.jl` also contains functions for MAP estimation, posterior predictive checks, and leave-one-out cross-validation.
 
 #### `LiabilityThresholdWtBnl.jl`
-Fits the model to WT and *bnl*−/+ data only. Produces:
-- `plots/FitsForBnl.pdf` — MAP liability distributions for WT and *bnl*−/+ (Fig. 4D)
-- `plots/effect_sizes_wt_bnl.pdf` — posterior boxplots of stochasticity σ, metamere-to-metamere variation, and the Bnl shift
-- `plots/shift_effects.pdf` — max probability difference between metameres and total outcome variance as a function of genotype shift (contributes to SI Fig. S4)
-- `plots/posterior_checks_metamere_defects_WT_bnl.pdf` — posterior predictive checks on max/min defects per metamere; panels assembled into SI Fig. S1
-- `plots/posterior_checks_larva_dispersion_wt_bnl.pdf` — posterior predictive checks on larva-to-larva variation
-- `plots/stacked_bar_ppc_wt_bnl.pdf` — stacked bar posterior predictive samples
+Fits the model to WT and *bnl*−/+ data. Produces MAP liability distributions (Fig. 4D), variability vs. shift plots (SI Fig. S4), and posterior predictive checks whose panels are assembled into SI Fig. S1.
 
 #### `LiabilityThresholdAllGenotypes.jl`
-Fits the model to all four genotypes, including leave-one-out cross-validation (fit on 3 genotypes, predict the held-out 4th). Produces:
-- `plots/full_predicted.pdf` — empirical frequency vs. model-predicted probability
-- `plots/liability_dists_full_fit.pdf` — MAP liability distributions for all four genotypes (Fig. 5I)
-- `plots/liability_dists_prediction_rescue.pdf` — predicted distributions for the rescue genotype, from the model fitted without it
-- `plots/effect_sizes_full.pdf` — posterior boxplots of stochasticity, metamere variation, Bnl shift, and F53S shift (Fig. 6A)
-- `plots/posterior_checks_metamere_defects_total.pdf` — posterior predictive checks for all four genotypes; panels assembled into SI Fig. S1
-- `plots/posterior_checks_larva_dispersion_total.pdf` — larva-to-larva dispersion posterior predictive checks for all four genotypes
-- `plots/shift_effects_full.pdf` — metamere probability differences and variance as a function of genotype shift (SI Fig. S4)
-- `plots/stacked_bar_ppc.pdf` — stacked bar posterior predictive samples for all four genotypes (SI Fig. S5)
-- `plots/mutual_information.pdf` — mutual information between each input (bnl allele, MEK F53S, metamere, noise ε) and the outcome
+Fits the model to all four genotypes with leave-one-genotype cross-validation. Produces MAP fits for all genotypes (Fig. 5I), effect size posteriors (Fig. 6A), variability shift plots (SI Fig. S4), stacked bar PPCs (SI Fig. S5), held-out predictions (SI Fig. S6), and a mutual information decomposition across inputs.
 
 #### `BayesianLarvaeAdjusted.jl`
-Tests whether metamere-specific effects are needed, separately for each genotype. Fits two hierarchical logistic models per genotype — a pooled model (no metamere effects) and a hierarchical model (per-metamere random effects) — both with larva-level random effects. Uses leave-one-larva-out cross-validation (ΔLOO) to compare them. Produces:
-- `plots/larva_adjusted_pooled_v_hierarchical_<genotype>.pdf` — posterior and predictive check plots per genotype; panels assembled into SI Fig. S1
-- `plots/tau_posteriors.pdf` — posterior distributions of τ (metamere effect magnitude) across all genotypes (SI Fig. S1, panel E)
-- `plots/sigma_l_posteriors.pdf` — posterior distributions of σ_L (larva effect magnitude) across all genotypes
-- `plots/LOO_scores_pooled_v_hierarchical.pdf` — ΔLOO comparing pooled and hierarchical models across genotypes
-- `plots/concordance_ppc_<genotype>.pdf` — posterior predictive check for the left-right concordance odds ratio n₀₀·n₁₁/(n₀₁·n₁₀) per metamere
+Tests for metamere-specific effects using hierarchical logistic models, separately per genotype. Fits a pooled (no metamere effects) and a hierarchical (per-metamere random effects) model, both with larva-level random effects, and compares them via leave-one-larva-out cross-validation. Posterior check panels assemble into SI Fig. S1; `plots/tau_posteriors.pdf` is panel E of SI Fig. S1.
+
+#### `BayesianLREffect.jl`
+Extends `BayesianLarvaeAdjusted.jl` with a per-observation left-right correlation parameter σ_lr, testing whether shared within-metamere effects beyond independence are needed. Produces posterior checks, LOO comparison, and concordant-pair PPCs per genotype.
 
 #### `DemoPlots.jl`
-Makes illustration plots for the paper (Fig. 4B–C). Produces:
-- `plots/threshold_illustration.pdf` — Gaussian liability with a step function output (Fig. 4B)
-- `plots/simplex_traj.pdf` — map between the (μ, σ) parameter space and the probability simplex (Fig. 4C)
-- `plots/probabilities_traj.pdf` — Gaussian density and pie chart visualizations (Fig. 4C)
+Illustration plots for Fig. 4B–C: threshold illustration, probability simplex, and Gaussian/pie-chart visualizations.
 
 #### `pYtagNormalityTest.jl`
-Validates statistical assumptions for the Btl::pYtag FGFR activation analysis (SI Section II). Performs Shapiro–Wilk normality tests and F-tests of variance equality on log-transformed per-embryo means of puncta count and peak intensity.
+Shapiro–Wilk normality tests and F-tests of variance equality on log-transformed pYtag activation metrics, validating assumptions used in the liability model (SI Section II).
 
 ---
 
 ## ShapeAnalysis
 
-### Dependencies
-
 Julia packages are managed via `ShapeAnalysis/Project.toml`. To install:
-
 ```julia
 using Pkg; Pkg.activate("ShapeAnalysis"); Pkg.instantiate()
 ```
 
-Packages used: `CSV`, `DataFrames`, `MultivariateStats`, `StatsBase`, `Plots`, `ReadVTK`, `HDF5`, `TiffImages`, `WriteVTK`, `Optimization`, `OptimizationOptimisers`, `SciMLSensitivity`, `Zygote`, `ForwardDiff`.
+**MATLAB R2024a** (at `/Applications/MATLAB_R2024a.app/`) is required for `DirectedSphericity.jl` and `ChordStats.jl`.
 
-**MATLAB R2024a** is required for `DirectedSphericity.jl` and `ChordStats.jl`, which call MATLAB scripts in `src/` to compute alpha-shape surface areas and chord statistics.
+Raw data would be in `ShapeAnalysis/data/raw/` containining per-experiment TIFF segmentation masks and cell-tracking CSVs with coordinates and DSRF intensities. Processed outputs (VTK meshes, shape features, PCA coordinates, time-alignment offsets) accumulate in `data/processed/` as the pipeline runs. Experiments labelled `*_bnl` are *bnl*−/+.
 
-### Data (`ShapeAnalysis/data/`)
+### Pipeline (run in order)
 
-| Directory/File | Contents |
-|---|---|
-| `raw/<date>_DSRFsfGFP[_bnl]/` | Per-experiment TIFF segmentation masks (one file per timepoint) |
-| `raw/<date>_DSRFsfGFP[_bnl]_Data.csv` | Tracked cell coordinates and DSRF/Pnt intensities |
-| `vtk/` | VTK-format 3D masks (generated by `MaskUnpack.jl`) |
-| `processed/combined_data.csv` | Merged fluorescence + coordinate data with PCA alignment (from `UnpackData.jl`) |
-| `processed/morphology.csv` | Shape features from VTK masks (from `MorphologySave.jl`) |
-| `processed/data_with_morphology.csv` | Merged morphology + fluorescence dataset |
-| `processed/data_with_PC.csv` | Adds PCA coordinates to the merged dataset (from `ShapePCA.jl`) |
-| `processed/data_with_alignment.csv` | Final dataset with time-alignment offsets (from `AlignCoords.jl`) |
-| `processed/sphericity/` | Per-experiment HDF5 files with sphericity and volume ratio |
-| `processed/chords/` | Per-experiment HDF5 files with chord statistics |
+1. **`UnpackData.jl`** — reads cell-tracking CSVs, aligns coordinate frames to PC1, computes inter-nuclear distance, cell velocity, and 30th-percentile-normalized DSRF intensity. Saves `data/processed/combined_data.csv`.
 
-Experiments labelled `*_bnl` are *bnl*−/+; the rest are wild type. Raw data can be made available upon reasonable request.
+2. **`MaskUnpack.jl`** — converts TIFF segmentation masks to VTK format with z-axis scaling (factor 9.39).
 
-### Pipeline
+3. **`DirectedSphericity.jl`** — computes sphericity and convex volume ratio from 3D masks via MATLAB `alphaShape`. *(Requires MATLAB)*
 
-Scripts must be run in the following order.
+4. **`ChordStats.jl`** — computes chord statistics (fraction of random voxel-pair chords outside the alpha shape) as a measure of concavity. *(Requires MATLAB)*
 
-#### Step 1 — `UnpackData.jl`
-Reads per-experiment CSV files of cell tracks (coordinates, DSRF::sfGFP and Pnt intensities). For each experiment, aligns the x–y coordinate frame so that PC1 points along the direction of branch elongation and increases with time. Computes:
-- Inter-nuclear distance between the two cells in each metamere pair.
-- Cell velocity (average displacement per frame).
-- DSRF intensity normalized to the per-experiment 30th percentile.
+5. **`MorphologySave.jl`** — assembles shape features (elongation, relative volume, 2D area/perimeter/circularity/eccentricity), merges with fluorescence data, saves `data/processed/data_with_morphology.csv`.
 
-Saves `data/processed/combined_data.csv`. Also produces `plots/intensity_normalizing.pdf` comparing raw and normalized intensity distributions across experiments.
+6. **`ShapePCA.jl`** — PCA on ten shape features using WT branches to define axes. Saves `data/processed/data_with_PC.csv`.
 
-#### Step 2 — `MaskUnpack.jl`
-Converts 3D TIFF segmentation masks in `data/raw/` to VTK format in `data/vtk/`, applying a z-axis scaling factor of 9.39 to account for the axial voxel size. Must be run before any of the shape feature scripts.
+7. **`AlignCoords.jl`** — time-aligns experiments by fitting a tanh sigmoid to PC1 morphology trajectories. Produces DSRF trajectory plots (Fig. 2G–H), PCA scatter colored by time (Fig. 3F), and saves `data/processed/data_with_alignment.csv`.
 
-#### Step 3 — `DirectedSphericity.jl`
-Computes sphericity and convex volume ratio from the 3D VTK masks by calling the MATLAB script `src/SurfaceArea.m`, which uses MATLAB's `alphaShape` and `convhull` to compute surface area and volume. Results saved as HDF5 files in `data/processed/sphericity/`.
+8. **`DSRFCrossingTime.jl`** — loads `data_with_alignment.csv` and computes mean first DSRF threshold crossing time vs. threshold level for WT and successful *bnl*−/+ branches, using both aligned and raw time axes. Produces `plots/DSRF_threshold_crossing_time_vs_T.pdf` (SI Fig. S7).
 
-**Requires MATLAB R2024a** at `/Applications/MATLAB_R2024a.app/`.
+`src/Utils.jl` provides Julia utilities shared across scripts. `src/SurfaceArea.m` and `src/ChordStats.m` are the MATLAB scripts called by steps 3–4.
 
-#### Step 4 — `ChordStats.jl`
-Computes chord statistics by calling the MATLAB script `src/ChordStats.m`. For each branch mask, random pairs of voxels are drawn and the fraction of the chord lying outside the alpha shape is measured — this quantifies how concave/branched the shape is. Results saved as HDF5 files in `data/processed/chords/`.
+---
 
-**Requires MATLAB R2024a** at `/Applications/MATLAB_R2024a.app/`.
+## PunctaCounting
 
-#### Step 5 — `MorphologySave.jl`
-Reads the VTK masks and the HDF5 outputs from steps 3–4. Computes the remaining shape features for each branch at each timepoint:
-- **Elongation** — 90th–10th percentile range along the PC1 axis of the 3D point cloud.
-- **Relative volume** — fraction of voxels in the distal tip region.
-- **2D area, perimeter, circularity, anisotropy (eccentricity)** — computed from the maximum-intensity projection.
+Python notebook and module for 3D quantification of Btl::pYtag puncta in confocal image stacks. Raw image data is not included.
 
-Merges with fluorescence data from step 1, checks that the join is complete, and saves `data/processed/data_with_morphology.csv`.
+#### `pytag_puncta_quantification_refactored.py`
+Core module providing image loading, mask filtering via a metamere lookup CSV, and puncta quantification (`QuantParams`, `quantify_puncta_per_branch`). Puncta are detected as local maxima above a per-image threshold — either `median + k·IQR` or a high percentile.
 
-#### Step 6 — `ShapePCA.jl`
-Applies PCA to the ten shape features (elongation, sphericity, chord fraction, volume ratio, area, anisotropy, perimeter, circularity, relative volume, inter-nuclear distance) using only wild-type branches to define the principal axes. Adds PC coordinates to the dataset and saves `data/processed/data_with_PC.csv`. Produces `plots/PCA_plots.pdf`.
-
-#### Step 7 — `AlignCoords.jl`
-Time-aligns the different imaging experiments by fitting a tanh sigmoid to the PC1 (morphology) trajectories and minimizing per-experiment time offsets (only timepoints ≤ 175 min are used for alignment). Also fits alignment offsets using the DSRF intensity trajectories for comparison.
-
-Produces:
-- `plots/Unaligned_data.pdf` / `plots/Aligned_to_PC_data.pdf` — all shape features and DSRF before and after alignment
-- `plots/DSRF_Intensity_in_time.pdf` / `plots/DSRF_Scaled_Intensity_in_time.pdf` — DSRF trajectories (Fig. 2G–H)
-- `plots/DSRF_versus_Morphology.pdf` — overlay of DSRF and morphology PC1 trajectories
-- `plots/PC_full_tmp2.pdf` — PCA scatter colored by aligned time (Fig. 3F)
-- `plots/AlignCoords.pdf` — scatter of morphology vs. DSRF alignment time shifts
-
-Saves the final analysis dataset to `data/processed/data_with_alignment.csv`.
-
-#### Step 8 — `DSRFCrossingTime.jl`
-Loads `data/processed/data_with_alignment.csv` and computes the first DSRF threshold crossing time across a range of intensity threshold values, separately for WT and successful *bnl*−/+ branches. Produces:
-- `plots/DSRF_threshold_crossing_time_vs_T.pdf` — mean first-crossing time ± s.e. vs. threshold value, shown for both time-aligned (PC1) and raw time axes (SI Fig. S7)
-
-### `src/Utils.jl`
-Julia utilities shared across ShapeAnalysis scripts (image loading helpers, data reshaping).
-
-### `src/SurfaceArea.m` and `src/ChordStats.m`
-MATLAB scripts called by `DirectedSphericity.jl` and `ChordStats.jl`. They read segmentation data from a temporary HDF5 file and write results back to a second HDF5 file.
+#### `pytag_puncta_quantification_refactored.ipynb`
+Interactive notebook covering single-image QC and visualization, comparison of thresholding strategies, and batch processing over all image/mask pairs. Outputs a long-form per-branch results CSV.
